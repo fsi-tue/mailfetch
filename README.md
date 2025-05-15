@@ -25,6 +25,10 @@ At least under macOS, you can call this script with the following line to copy i
 python3 ./fsi-mailfetch.py | pbcopy
 ```
 
-## Notices
+## FAQ
+### Why do we use a separate pad for the mails?
+The script intents to use a separate pad for the mails with the naming convention `fsi-sitzung-YYYY-MM-DD-mails` (effectively the link to the meeting pad suffixed with `-mails`). The reason behind this is that our hedgedoc instance has a limit of 100.000 characters per pad. To avoid issues with that limit, we use a separate one.
+
+## Last advice
 Feel free to use and contribute!
 If you made any contributions, please write down your name to the AUTHORS file.
