@@ -63,13 +63,14 @@ def prepare_mails(imap_server, start_date):
     # fetch all headers
     uids = data[0].split()
     uid_range = b','.join(uids)
-    typ, data = imap_server.fetch(uid_range, '(BODY.PEEK[])')
+    typ, data = imap_server.fetch(uid_range, '(BODY.PEEK[] FLAGS)')
     if typ != 'OK':
         eprint("Failed to fetch messages.")
         return
 
     # filter mails
-    emails = []
+    normal_emails = []
+    important_emails = []
     rxStripHtml = re.compile(r"<style.+?</style>|<.+?>", re.DOTALL)
     rxStripEmptyLines = re.compile(r"\n\s*\n+", re.MULTILINE)
     rxStripQuote = re.compile(r"^\s*>.+?$", re.MULTILINE)
@@ -79,6 +80,10 @@ def prepare_mails(imap_server, start_date):
         # fetch infos
         uid = uid_info.decode().split()[0]
         message = email.message_from_bytes(header_bytes)
+        # flag handling
+        flags_match = re.search(r'FLAGS \(([^)]*)\)', uid_info.decode())
+        flags = flags_match.group(1).split() if flags_match else []
+
         
         # FILTER by date
         date = parsedate_to_datetime(message.get("Date"))
@@ -90,6 +95,9 @@ def prepare_mails(imap_server, start_date):
         recipients = [addr.lower() for name, addr in getaddresses([to_header or ""])]
         if not "fsi@fsi.uni-tuebingen.de".lower() in recipients: continue
         
+        # FILTER by important flag 
+        is_important = '\\Important' in flags or '\\Flagged' in flags
+
         # handle multipart mails
         body = ""
         if message.is_multipart():
@@ -118,13 +126,21 @@ def prepare_mails(imap_server, start_date):
 
         # at this point, only relevant mails are left
         # so we want to save them
-        emails.append({
-            "uid": uid, 
-            "date": date, 
-            "from": re.sub(rxStripHtml, "", decode_mime_words(message.get("From"))),
-            "subject": decode_mime_words(message.get("Subject")),
-            "body": body})
-    return emails
+        if is_important:
+            important_emails.append({
+                "uid": uid, 
+                "date": date, 
+                "from": re.sub(rxStripHtml, "", decode_mime_words(message.get("From"))),
+                "subject": decode_mime_words(message.get("Subject")),
+                "body": body})
+        else:
+            normal_emails.append({
+                "uid": uid, 
+                "date": date, 
+                "from": re.sub(rxStripHtml, "", decode_mime_words(message.get("From"))),
+                "subject": decode_mime_words(message.get("Subject")),
+                "body": body})
+    return (important_emails, normal_emails)
 
 def format_mails(mails):
     str = []
@@ -164,9 +180,10 @@ def main():
     imap_server.select(config["mail"]["mailbox"]) #TODO: provide default value
 
     # prepare and format mails
-    mails = prepare_mails(imap_server, start_date)
-    formatted_mails = format_mails(mails)
-    eprint("total_mail_len = " + str(len(formatted_mails)))
+    (important_emails, normal_emails) = prepare_mails(imap_server, start_date)
+    formatted_normal_mails = format_mails(normal_emails)
+    formatted_important_mails = format_mails(important_emails)
+    eprint("total_mail_len = " + str(len(formatted_normal_mails) + len(formatted_important_mails)))
 
     # generate full output
     next_meeting = now_date + timedelta(days=7)
@@ -183,7 +200,10 @@ def main():
     output.append(strReactionHelp)
     output.append(":::")
     output.append("---")
-    output.append(formatted_mails)
+    output.append("## Wichtige Mails")
+    output.append(formatted_important_mails)
+    output.append("## FYI Mails")
+    output.append(formatted_normal_mails)
 
     print("\n".join(output))
     return 
