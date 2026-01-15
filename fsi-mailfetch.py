@@ -92,7 +92,8 @@ def prepare_mails(imap_server, start_date):
 
         # FILTER by recipient
         to_header = decode_mime_words(message.get("To"))
-        recipients = [addr.lower() for name, addr in getaddresses([to_header or ""])]
+        cc_header = decode_mime_words(message.get("CC"))
+        recipients = [addr.lower() for name, addr in ( getaddresses([to_header or ""]) + getaddresses([cc_header or ""]) )]
         if not "fsi@fsi.uni-tuebingen.de".lower() in recipients: continue
         
         # FILTER by important flag 
