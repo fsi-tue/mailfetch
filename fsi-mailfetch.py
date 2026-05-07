@@ -91,10 +91,12 @@ def prepare_mails(imap_server, start_date):
         if date < start_date: continue
 
         # FILTER by recipient
-        to_header = decode_mime_words(message.get("To"))
-        cc_header = decode_mime_words(message.get("CC"))
-        recipients = [addr.lower() for name, addr in ( getaddresses([to_header or ""]) + getaddresses([cc_header or ""]) )]
-        if not "fsi@fsi.uni-tuebingen.de".lower() in recipients: continue
+        #to_header = decode_mime_words(message.get("To"))
+        #cc_header = decode_mime_words(message.get("CC"))
+        list_id_header = decode_mime_words(message.get("List-ID"))
+        #recipients = [addr.lower() for name, addr in ( getaddresses([to_header or ""]) + getaddresses([cc_header or ""]) )]
+        list_ids = [addr.lower() for name, addr in getaddresses([list_id_header or ""]) ]
+        if not "fsi.fsi.uni-tuebingen.de".lower() in list_ids: continue
         
         # FILTER by important flag 
         is_important = '\\Important' in flags or '\\Flagged' in flags
